@@ -1340,6 +1340,17 @@ void begin_phase(bool is_new_phase)
     phase_players_iterate_end;
   }
 
+  phase_players_iterate(pplayer)
+  {
+    unit_list_iterate(pplayer->units, punit)
+    {
+      punit->temp_moves_left = punit->moves_left;
+      punit->moves_left = 0;
+    }
+    unit_list_iterate_end;
+  }
+  phase_players_iterate_end;
+
   sanity_check();
 
   game.tinfo.last_turn_change_time = game.server.turn_change_time;
@@ -1376,6 +1387,18 @@ void end_phase()
    * following parts get wiped out before the user gets a chance to
    * see them.  --dwp
    */
+
+  phase_players_iterate(pplayer)
+  {
+    unit_list_iterate(pplayer->units, punit)
+    {
+      punit->moves_left = punit->temp_moves_left;
+    }
+    unit_list_iterate_end;
+  }
+  phase_players_iterate_end;
+
+
   phase_players_iterate(pplayer)
   {
     /* Unlike the start_phase packet we only send this one to the active
