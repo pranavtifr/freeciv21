@@ -646,6 +646,7 @@ void execute_unit_orders(struct player *pplayer)
   unit_list_iterate_safe(pplayer->units, punit)
   {
     if (unit_has_orders(punit)) {
+      punit->done_moving = false;
       execute_orders(punit, false);
     }
   }
