@@ -1263,7 +1263,7 @@ void begin_phase(bool is_new_phase)
     whole_map_iterate_end;
     phase_players_iterate(pplayer)
     {
-      update_unit_activities(pplayer);
+      execute_unit_orders(pplayer);
       flush_packets();
     }
     phase_players_iterate_end;
@@ -1283,7 +1283,7 @@ void begin_phase(bool is_new_phase)
      * pillage done, etc.). */
     phase_players_iterate(pplayer)
     {
-      execute_unit_orders(pplayer);
+      update_unit_activities(pplayer);
       flush_packets();
     }
     phase_players_iterate_end;
