@@ -1375,8 +1375,8 @@ city_dialog::city_dialog(QWidget *parent) : QWidget(parent)
 
   ui.tabWidget->setTabText(0, _("Production"));
   ui.tabWidget->setTabText(1, _("Governor"));
-  ui.tabs_right->setTabText(0, _("General"));
-  ui.tabs_right->setTabText(1, _("Citizens"));
+// ui.tabs_right->setTabText(0, _("General"));
+//  ui.tabs_right->setTabText(1, _("Citizens"));
 
   const auto show_unit_actions_menu = [this](const QPoint &loc) {
     auto *item = ui.present_units_list->itemAt(loc);
@@ -2114,10 +2114,10 @@ void city_dialog::refresh()
   setUpdatesEnabled(true);
 
   auto scale = queen()->mapview_wdg->scale();
-  ui.middleSpacer->changeSize(scale * get_citydlg_canvas_width(),
-                              scale * get_citydlg_canvas_height(),
-                              QSizePolicy::Expanding,
-                              QSizePolicy::Expanding);
+ // ui.middleSpacer->changeSize(scale * get_citydlg_canvas_width(),
+ //                             scale * get_citydlg_canvas_height(),
+ //                             QSizePolicy::Expanding,
+ //                             QSizePolicy::Expanding);
 
   updateGeometry();
   update();
