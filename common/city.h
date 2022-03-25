@@ -307,7 +307,7 @@ struct city {
   /* Tile output, regardless of if the tile is actually worked. It is used
    * as cache for the output of the tiles within the city map.
    * (see city_tile_cache_update() and city_tile_cache_get_output()) */
-  struct tile_cache *tile_cache;
+  std::vector<tile_cache> tile_caches;
   /* The memory allocated for tile_cache is valid for this squared city
    * radius. */
   int tile_cache_radius_sq;

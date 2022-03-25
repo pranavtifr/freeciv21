@@ -56,8 +56,9 @@ std::vector<int> citymap;
  */
 void citymap_turn_init(struct player *pplayer)
 {
-  /* The citymap is reinitialized at the start of ever turn.  This includes
-   * a call to realloc, which only really matters if this is the first turn
+  /* The citymap is reinitialized at the start of ever turn.
+   * This includes clearning an empty map, which only really matters if this
+   * is the first turn
    * of the game (but it's easier than a separate function to do this). */
   citymap.clear();
   citymap = std::vector<int>(MAP_INDEX_SIZE, 0);

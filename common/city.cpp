@@ -2310,8 +2310,9 @@ static inline void set_city_bonuses(struct city *pcity)
 }
 
 /**
-   This function sets the cache for the tile outputs, the pcity->tile_cache[]
-   array. It is called near the beginning of city_refresh_from_main_map().
+   This function sets the cache for the tile outputs, the
+   pcity->tile_caches[] array. It is called near the beginning of
+   city_refresh_from_main_map().
 
    It doesn't depend on anything else in the refresh and doesn't change
    as workers are moved around, but does change when buildings are built,
@@ -2325,11 +2326,9 @@ static inline void city_tile_cache_update(struct city *pcity)
   int radius_sq = city_map_radius_sq_get(pcity);
 
   // initialize tile_cache if needed
-  if (pcity->tile_cache == nullptr || pcity->tile_cache_radius_sq == -1
+  if (pcity->tile_caches.empty() || pcity->tile_cache_radius_sq == -1
       || pcity->tile_cache_radius_sq != radius_sq) {
-    pcity->tile_cache = static_cast<tile_cache *>(
-        fc_realloc(pcity->tile_cache, city_map_tiles(radius_sq)
-                                          * sizeof(*(pcity->tile_cache))));
+    pcity->tile_caches = std::vector<tile_cache>(city_map_tiles(radius_sq));
     pcity->tile_cache_radius_sq = radius_sq;
   }
 
@@ -2339,7 +2338,7 @@ static inline void city_tile_cache_update(struct city *pcity)
   {
     output_type_iterate(o)
     {
-      (pcity->tile_cache[city_tile_index]).output[o] =
+      (pcity->tile_caches[city_tile_index]).output[o] =
           city_tile_output(pcity, ptile, is_celebrating, o);
     }
     output_type_iterate_end;
@@ -2359,7 +2358,7 @@ static inline int city_tile_cache_get_output(const struct city *pcity,
       pcity->tile_cache_radius_sq == city_map_radius_sq_get(pcity), 0);
   fc_assert_ret_val(city_tile_index < city_map_tiles_from_city(pcity), 0);
 
-  return (pcity->tile_cache[city_tile_index]).output[o];
+  return (pcity->tile_caches[city_tile_index]).output[o];
 }
 
 /**
@@ -3429,9 +3428,7 @@ void destroy_city_virtual(struct city *pcity)
 
   unit_list_destroy(pcity->units_supported);
   trade_route_list_destroy(pcity->routes);
-  if (pcity->tile_cache != nullptr) {
-    free(pcity->tile_cache); // realloc
-  }
+  pcity->tile_caches.clear();
   NFC_FREE(pcity->cm_parameter);
   if (!is_server()) {
     unit_list_destroy(pcity->client.info_units_supported);
