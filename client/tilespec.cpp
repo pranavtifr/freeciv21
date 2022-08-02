@@ -1078,12 +1078,14 @@ bool tilespec_reread(const char *new_tileset_name,
     tileset_setup_unit_type(tileset, punittype);
   }
   unit_type_iterate_end;
-  governments_iterate(gov) { tileset_setup_government(tileset, gov); }
-  governments_iterate_end;
+  for (auto &gov : governments) {
+    tileset_setup_government(tileset, &gov);
+  }
   extra_type_iterate(pextra) { tileset_setup_extra(tileset, pextra); }
   extra_type_iterate_end;
-  nations_iterate(pnation) { tileset_setup_nation_flag(tileset, pnation); }
-  nations_iterate_end;
+  for (auto &pnation : nations) {
+    tileset_setup_nation_flag(tileset, &pnation);
+  } // iterate over nations - pnation
   improvement_iterate(pimprove)
   {
     tileset_setup_impr_type(tileset, pimprove);
@@ -3506,10 +3508,11 @@ void tileset_setup_nation_flag(struct tileset *t, struct nation_type *nation)
                   nation_rule_name(nation));
   }
 
-  sprite_vector_reserve(&t->sprites.nation_flag, nation_count());
+  sprite_vector_reserve(&t->sprites.nation_flag, game.control.nation_count);
   t->sprites.nation_flag.p[nation_index(nation)] = flag;
 
-  sprite_vector_reserve(&t->sprites.nation_shield, nation_count());
+  sprite_vector_reserve(&t->sprites.nation_shield,
+                        game.control.nation_count);
   t->sprites.nation_shield.p[nation_index(nation)] = shield;
 }
 

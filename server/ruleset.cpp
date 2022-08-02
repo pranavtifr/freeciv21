@@ -3967,17 +3967,15 @@ static bool load_government_names(struct section_file *file,
 
     /* Government names are needed early so that get_government_by_name will
      * work. */
-    governments_iterate(gov)
-    {
+    for (auto &gov : governments) {
       const char *sec_name =
-          section_name(section_list_get(sec, government_index(gov)));
+          section_name(section_list_get(sec, government_index(&gov)));
 
-      if (!ruleset_load_names(&gov->name, nullptr, file, sec_name)) {
+      if (!ruleset_load_names(&gov.name, nullptr, file, sec_name)) {
         ok = false;
         break;
       }
-    }
-    governments_iterate_end;
+    };
   }
 
   section_list_destroy(sec);
@@ -4040,12 +4038,11 @@ static bool load_ruleset_governments(struct section_file *file,
         government_number(game.government_during_revolution);
 
     // easy ones:
-    governments_iterate(g)
-    {
-      const int i = government_index(g);
+    for (auto &g : governments) {
+      const int i = government_index(&g);
       const char *sec_name = section_name(section_list_get(sec, i));
       struct requirement_vector *reqs = lookup_req_list(
-          file, compat, sec_name, "reqs", government_rule_name(g));
+          file, compat, sec_name, "reqs", government_rule_name(&g));
 
       if (reqs == nullptr) {
         ok = false;
@@ -4056,32 +4053,30 @@ static bool load_ruleset_governments(struct section_file *file,
         char entry[100];
 
         fc_snprintf(entry, sizeof(entry), "%s.ai_better", sec_name);
-        g->ai.better = lookup_government(file, entry, filename, nullptr);
-        if (g->ai.better == nullptr) {
+        g.ai.better = lookup_government(file, entry, filename, nullptr);
+        if (g.ai.better == nullptr) {
           ok = false;
           break;
         }
       } else {
-        g->ai.better = nullptr;
+        g.ai.better = nullptr;
       }
-      requirement_vector_copy(&g->reqs, reqs);
+      requirement_vector_copy(&g.reqs, reqs);
 
-      sz_strlcpy(g->graphic_str,
+      sz_strlcpy(g.graphic_str,
                  secfile_lookup_str(file, "%s.graphic", sec_name));
-      sz_strlcpy(g->graphic_alt,
+      sz_strlcpy(g.graphic_alt,
                  secfile_lookup_str(file, "%s.graphic_alt", sec_name));
 
-      g->helptext = lookup_strvec(file, sec_name, "helptext");
-    }
-    governments_iterate_end;
+      g.helptext = lookup_strvec(file, sec_name, "helptext");
+    } // iterate governments - g
   }
 
   if (ok) {
     // titles
-    governments_iterate(g)
-    {
+    for (auto &g : governments) {
       const char *sec_name =
-          section_name(section_list_get(sec, government_index(g)));
+          section_name(section_list_get(sec, government_index(&g)));
       const char *male, *female;
 
       if (!(male = secfile_lookup_str(file, "%s.ruler_male_title", sec_name))
@@ -4090,21 +4085,20 @@ static bool load_ruleset_governments(struct section_file *file,
         qCCritical(ruleset_category,
                    "Lack of default ruler titles for "
                    "government \"%s\" (nb %d): %s",
-                   government_rule_name(g), government_number(g),
+                   government_rule_name(&g), government_number(&g),
                    secfile_error());
         ok = false;
         break;
       } else if (nullptr
-                 == government_ruler_title_new(g, nullptr, male, female)) {
+                 == government_ruler_title_new(&g, nullptr, male, female)) {
         qCCritical(ruleset_category,
                    "Lack of default ruler titles for "
                    "government \"%s\" (nb %d).",
-                   government_rule_name(g), government_number(g));
+                   government_rule_name(&g), government_number(&g));
         ok = false;
         break;
       }
-    }
-    governments_iterate_end;
+    } // iterate governments - g
   }
 
   section_list_destroy(sec);
@@ -4306,9 +4300,8 @@ static bool load_nation_names(struct section_file *file,
     game.control.nation_count = section_list_size(sec);
     nations_alloc(game.control.nation_count);
 
-    nations_iterate(pl)
-    {
-      const int i = nation_index(pl);
+    for (auto &pl : nations) {
+      const int i = nation_index(&pl);
       const char *sec_name = section_name(section_list_get(sec, i));
       const char *domain = secfile_lookup_str_default(
           file, nullptr, "%s.translation_domain", sec_name);
@@ -4320,10 +4313,10 @@ static bool load_nation_names(struct section_file *file,
       }
 
       if (!strcmp("freeciv", domain)) {
-        pl->translation_domain = nullptr;
+        pl.translation_domain = nullptr;
       } else if (!strcmp("freeciv-nations", domain)) {
-        pl->translation_domain = new char[strlen(domain) + 1];
-        qstrcpy(pl->translation_domain, domain);
+        pl.translation_domain = new char[strlen(domain) + 1];
+        qstrcpy(pl.translation_domain, domain);
       } else {
         qCCritical(ruleset_category,
                    "Unsupported translation domain \"%s\" for %s", domain,
@@ -4332,11 +4325,11 @@ static bool load_nation_names(struct section_file *file,
         break;
       }
 
-      if (!ruleset_load_names(&pl->adjective, domain, file, sec_name)) {
+      if (!ruleset_load_names(&pl.adjective, domain, file, sec_name)) {
         ok = false;
         break;
       }
-      name_set(&pl->noun_plural, domain, noun_plural);
+      name_set(&pl.noun_plural, domain, noun_plural);
 
       // Check if nation name is already defined.
       for (j = 0; j < i && ok; j++) {
@@ -4348,31 +4341,31 @@ static bool load_nation_names(struct section_file *file,
          * course.) */
         if (0
             == strcmp(Qn_(untranslated_name(&n2->adjective)),
-                      Qn_(untranslated_name(&pl->adjective)))) {
+                      Qn_(untranslated_name(&pl.adjective)))) {
           qCCritical(ruleset_category,
                      "Two nations defined with the same adjective \"%s\": "
                      "in section \'%s\' and section \'%s\'",
-                     Qn_(untranslated_name(&pl->adjective)),
+                     Qn_(untranslated_name(&pl.adjective)),
                      section_name(section_list_get(sec, j)), sec_name);
           ok = false;
         } else if (!strcmp(rule_name_get(&n2->adjective),
-                           rule_name_get(&pl->adjective))) {
-          /* We cannot have the same rule name, as the game needs them to be
-           * distinct. */
+                           rule_name_get(&pl.adjective))) {
+          /* We cannot have the same rule name, as the game needs them to
+           * be distinct. */
           qCCritical(ruleset_category,
                      "Two nations defined with the same rule_name \"%s\": "
                      "in section \'%s\' and section \'%s\'",
-                     rule_name_get(&pl->adjective),
+                     rule_name_get(&pl.adjective),
                      section_name(section_list_get(sec, j)), sec_name);
           ok = false;
         } else if (0
                    == strcmp(Qn_(untranslated_name(&n2->noun_plural)),
-                             Qn_(untranslated_name(&pl->noun_plural)))) {
+                             Qn_(untranslated_name(&pl.noun_plural)))) {
           // We don't want identical English plural names either.
           qCCritical(ruleset_category,
                      "Two nations defined with the same plural name \"%s\": "
                      "in section \'%s\' and section \'%s\'",
-                     Qn_(untranslated_name(&pl->noun_plural)),
+                     Qn_(untranslated_name(&pl.noun_plural)),
                      section_name(section_list_get(sec, j)), sec_name);
           ok = false;
         }
@@ -4381,7 +4374,6 @@ static bool load_nation_names(struct section_file *file,
         break;
       }
     }
-    nations_iterate_end;
   }
 
   section_list_destroy(sec);
@@ -4834,10 +4826,9 @@ static bool load_ruleset_nations(struct section_file *file,
 
   if (ok) {
     sec = secfile_sections_by_name_prefix(file, NATION_SECTION_PREFIX);
-    nations_iterate(pnation)
-    {
+    for (auto &pnation : nations) {
       struct nation_type *pconflict;
-      const int i = nation_index(pnation);
+      const int i = nation_index(&pnation);
       char tmp[200] = "\0";
       const char *barb_type;
       const char *sec_name = section_name(section_list_get(sec, i));
@@ -4845,7 +4836,7 @@ static bool load_ruleset_nations(struct section_file *file,
 
       // Nation sets and groups.
       if (default_set >= 0) {
-        nation_set_list_append(pnation->sets,
+        nation_set_list_append(pnation.sets,
                                nation_set_by_number(default_set));
       }
       vec = secfile_lookup_str_vec(file, &dim, "%s.groups", sec_name);
@@ -4856,24 +4847,24 @@ static bool load_ruleset_nations(struct section_file *file,
         fc_assert(pset == nullptr || pgroup == nullptr);
 
         if (nullptr != pset) {
-          nation_set_list_append(pnation->sets, pset);
+          nation_set_list_append(pnation.sets, pset);
         } else if (nullptr != pgroup) {
-          nation_group_list_append(pnation->groups, pgroup);
+          nation_group_list_append(pnation.groups, pgroup);
         } else {
-          /* For nation authors, this would probably be considered an error.
-           * But it can happen normally. The civ1 compatibility ruleset only
-           * uses the nations that were in civ1, so not all of the links will
-           * exist. */
+          /* For nation authors, this would probably be considered an
+           * error. But it can happen normally. The civ1 compatibility
+           * ruleset only uses the nations that were in civ1, so not all of
+           * the links will exist. */
           qCDebug(ruleset_category, "Nation %s: Unknown set/group \"%s\".",
-                  nation_rule_name(pnation), vec[j]);
+                  nation_rule_name(&pnation), vec[j]);
         }
       }
       delete[] vec;
       vec = nullptr;
-      if (nation_set_list_size(pnation->sets) < 1) {
+      if (nation_set_list_size(pnation.sets) < 1) {
         qCCritical(ruleset_category,
                    "Nation %s is not a member of any nation set",
-                   nation_rule_name(pnation));
+                   nation_rule_name(&pnation));
         ok = false;
         break;
       }
@@ -4884,21 +4875,21 @@ static bool load_ruleset_nations(struct section_file *file,
       for (j = 0; j < dim; j++) {
         pconflict = nation_by_rule_name(vec[j]);
 
-        if (pnation == pconflict) {
+        if (&pnation == pconflict) {
           qCCritical(ruleset_category, "Nation %s conflicts with itself",
-                     nation_rule_name(pnation));
+                     nation_rule_name(&pnation));
           ok = false;
           break;
         } else if (nullptr != pconflict) {
-          nation_list_append(pnation->server.conflicts_with, pconflict);
+          nation_list_append(pnation.server.conflicts_with, pconflict);
         } else {
-          /* For nation authors, this would probably be considered an error.
-           * But it can happen normally. The civ1 compatibility ruleset only
-           * uses the nations that were in civ1, so not all of the links will
-           * exist. */
+          /* For nation authors, this would probably be considered an
+           * error. But it can happen normally. The civ1 compatibility
+           * ruleset only uses the nations that were in civ1, so not all of
+           * the links will exist. */
           qCDebug(ruleset_category,
                   "Nation %s: conflicts_with nation \"%s\" is unknown.",
-                  nation_rule_name(pnation), vec[j]);
+                  nation_rule_name(&pnation), vec[j]);
         }
       }
       delete[] vec;
@@ -4920,12 +4911,13 @@ static bool load_ruleset_nations(struct section_file *file,
 
         if (check_name(name)) {
           /* The ruleset contains a name that is too long. This shouldn't
-           * happen - if it does, the author should get immediate feedback */
+           * happen - if it does, the author should get immediate feedback
+           */
           sz_strlcpy(temp_name, name);
           qCCritical(ruleset_category,
                      "Nation %s: leader name \"%s\" "
                      "is too long.",
-                     nation_rule_name(pnation), name);
+                     nation_rule_name(&pnation), name);
           ok = false;
           break;
         }
@@ -4933,7 +4925,7 @@ static bool load_ruleset_nations(struct section_file *file,
         sex = secfile_lookup_str(file, "%s.leaders%d.sex", sec_name, j);
         if (nullptr == sex) {
           qCCritical(ruleset_category, "Nation %s: leader \"%s\": %s.",
-                     nation_rule_name(pnation), name, secfile_error());
+                     nation_rule_name(&pnation), name, secfile_error());
           ok = false;
           break;
         } else if (0 == fc_strcasecmp("Male", sex)) {
@@ -4942,11 +4934,11 @@ static bool load_ruleset_nations(struct section_file *file,
           qCCritical(ruleset_category,
                      "Nation %s: leader \"%s\" has unsupported "
                      "sex variant \"%s\".",
-                     nation_rule_name(pnation), name, sex);
+                     nation_rule_name(&pnation), name, sex);
           ok = false;
           break;
         }
-        (void) nation_leader_new(pnation, name, is_male);
+        (void) nation_leader_new(&pnation, name, is_male);
       }
       if (!ok) {
         break;
@@ -4962,64 +4954,61 @@ static bool load_ruleset_nations(struct section_file *file,
         }
         qCCritical(ruleset_category,
                    "Nation %s: Too many leaders; max is %d",
-                   nation_rule_name(pnation), MAX_NUM_LEADERS);
+                   nation_rule_name(&pnation), MAX_NUM_LEADERS);
         ok = false;
         break;
       } else if (0 == j) {
         qCCritical(ruleset_category,
                    "Nation %s: no leaders; at least one is required.",
-                   nation_rule_name(pnation));
+                   nation_rule_name(&pnation));
         ok = false;
         break;
       }
 
       // Check if leader name is not already defined in this nation.
-      if ((bad_leader = check_leader_names(pnation))) {
+      if ((bad_leader = check_leader_names(&pnation))) {
         qCCritical(ruleset_category,
                    "Nation %s: leader \"%s\" defined more than once.",
-                   nation_rule_name(pnation), bad_leader);
+                   nation_rule_name(&pnation), bad_leader);
         ok = false;
         break;
       }
 
       // Nation player color preference, if any
-      fc_assert_ret_val(pnation->server.rgb == nullptr, false);
-      (void) rgbcolor_load(file, &pnation->server.rgb, "%s.color", sec_name);
+      fc_assert_ret_val(pnation.server.rgb == nullptr, false);
+      (void) rgbcolor_load(file, &pnation.server.rgb, "%s.color", sec_name);
 
       // Load nation traits
-      ruleset_load_traits(pnation->server.traits, file, sec_name, "trait_");
+      ruleset_load_traits(pnation.server.traits, file, sec_name, "trait_");
       for (tr = trait_begin(); tr != trait_end(); tr = trait_next(tr)) {
         bool server_traits_used = true;
 
-        if (pnation->server.traits[tr].min < 0) {
-          pnation->server.traits[tr].min =
-              game.server.default_traits[tr].min;
+        if (pnation.server.traits[tr].min < 0) {
+          pnation.server.traits[tr].min = game.server.default_traits[tr].min;
         } else {
           server_traits_used = false;
         }
-        if (pnation->server.traits[tr].max < 0) {
-          pnation->server.traits[tr].max =
-              game.server.default_traits[tr].max;
+        if (pnation.server.traits[tr].max < 0) {
+          pnation.server.traits[tr].max = game.server.default_traits[tr].max;
         } else {
           server_traits_used = false;
         }
-        if (pnation->server.traits[tr].fixed < 0) {
+        if (pnation.server.traits[tr].fixed < 0) {
           if (server_traits_used) {
-            pnation->server.traits[tr].fixed =
+            pnation.server.traits[tr].fixed =
                 game.server.default_traits[tr].fixed;
           } else {
-            int diff = pnation->server.traits[tr].max
-                       - pnation->server.traits[tr].min;
+            int diff = pnation.server.traits[tr].max
+                       - pnation.server.traits[tr].min;
 
             /* TODO: Should sometimes round the a / 2 = x.5 results up */
-            pnation->server.traits[tr].fixed =
-                diff / 2 + pnation->server.traits[tr].min;
+            pnation.server.traits[tr].fixed =
+                diff / 2 + pnation.server.traits[tr].min;
           }
         }
-        if (pnation->server.traits[tr].max
-            < pnation->server.traits[tr].min) {
+        if (pnation.server.traits[tr].max < pnation.server.traits[tr].min) {
           qCCritical(ruleset_category, "%s values for trait %s not sane.",
-                     nation_rule_name(pnation), trait_name(tr));
+                     nation_rule_name(&pnation), trait_name(tr));
           ok = false;
           break;
         }
@@ -5029,36 +5018,36 @@ static bool load_ruleset_nations(struct section_file *file,
         break;
       }
 
-      pnation->is_playable = secfile_lookup_bool_default(
+      pnation.is_playable = secfile_lookup_bool_default(
           file, true, "%s.is_playable", sec_name);
 
       // Check barbarian type. Default is "None" meaning not a barbarian
       barb_type = secfile_lookup_str_default(file, "None",
                                              "%s.barbarian_type", sec_name);
-      pnation->barb_type = barbarian_type_by_name(barb_type, fc_strcasecmp);
-      if (!barbarian_type_is_valid(pnation->barb_type)) {
+      pnation.barb_type = barbarian_type_by_name(barb_type, fc_strcasecmp);
+      if (!barbarian_type_is_valid(pnation.barb_type)) {
         qCCritical(ruleset_category,
                    "Nation %s, barbarian_type is invalid (\"%s\")",
-                   nation_rule_name(pnation), barb_type);
+                   nation_rule_name(&pnation), barb_type);
         ok = false;
         break;
       }
 
-      if (pnation->barb_type != NOT_A_BARBARIAN && pnation->is_playable) {
+      if (pnation.barb_type != NOT_A_BARBARIAN && pnation.is_playable) {
         /* We can't allow players to use barbarian nations, barbarians
          * may run out of nations */
         qCCritical(ruleset_category,
                    "Nation %s marked both barbarian and playable.",
-                   nation_rule_name(pnation));
+                   nation_rule_name(&pnation));
         ok = false;
         break;
       }
 
       // Flags
-      sz_strlcpy(pnation->flag_graphic_str,
+      sz_strlcpy(pnation.flag_graphic_str,
                  secfile_lookup_str_default(file, "-", "%s.flag", sec_name));
       sz_strlcpy(
-          pnation->flag_graphic_alt,
+          pnation.flag_graphic_alt,
           secfile_lookup_str_default(file, "-", "%s.flag_alt", sec_name));
 
       // Ruler titles
@@ -5072,8 +5061,8 @@ static bool load_ruleset_nations(struct section_file *file,
           break;
         }
 
-        /* NB: even if the government doesn't exist, we load the entries for
-         * the ruler titles to avoid warnings about unused entries. */
+        /* NB: even if the government doesn't exist, we load the entries
+         * for the ruler titles to avoid warnings about unused entries. */
         male = secfile_lookup_str(file, "%s.ruler_titles%d.male_title",
                                   sec_name, j);
         female = secfile_lookup_str(file, "%s.ruler_titles%d.female_title",
@@ -5092,7 +5081,7 @@ static bool load_ruleset_nations(struct section_file *file,
             gov = nullptr;
             qCCritical(ruleset_category,
                        "Nation %s: government \"%s\" not in allowed_govs.",
-                       nation_rule_name(pnation), name);
+                       nation_rule_name(&pnation), name);
             ok = false;
             break;
           }
@@ -5103,14 +5092,14 @@ static bool load_ruleset_nations(struct section_file *file,
                                      game.server.ruledit.ag_count)) {
             qCCritical(ruleset_category,
                        "Nation %s: government \"%s\" not found.",
-                       nation_rule_name(pnation), name);
+                       nation_rule_name(&pnation), name);
             ok = false;
             break;
           }
         }
         if (nullptr != male && nullptr != female) {
           if (gov) {
-            (void) government_ruler_title_new(gov, pnation, male, female);
+            (void) government_ruler_title_new(gov, &pnation, male, female);
           }
         } else {
           qCCritical(ruleset_category, "%s", secfile_error());
@@ -5129,21 +5118,21 @@ static bool load_ruleset_nations(struct section_file *file,
         ok = false;
         break;
       }
-      pnation->style = style_by_rule_name(name);
-      if (pnation->style == nullptr) {
+      pnation.style = style_by_rule_name(name);
+      if (pnation.style == nullptr) {
         if (game.server.ruledit.allowed_styles == nullptr
             || !is_on_allowed_list(name, game.server.ruledit.allowed_styles,
                                    game.server.ruledit.as_count)) {
           qCCritical(ruleset_category, "Nation %s: Illegal style \"%s\"",
-                     nation_rule_name(pnation), name);
+                     nation_rule_name(&pnation), name);
           ok = false;
           break;
         } else {
           qCDebug(ruleset_category,
                   "Nation %s: style \"%s\" not supported in this "
                   "ruleset; using default.",
-                  nation_rule_name(pnation), name);
-          pnation->style = style_by_number(0);
+                  nation_rule_name(&pnation), name);
+          pnation.style = style_by_number(0);
         }
       }
 
@@ -5156,23 +5145,23 @@ static bool load_ruleset_nations(struct section_file *file,
         /* No test for duplicate nations is performed.  If there is a
          * duplicate entry it will just cause that nation to have an
          * increased probability of being chosen. */
-        if (pconflict == pnation) {
+        if (pconflict == &pnation) {
           qCCritical(ruleset_category,
                      "Nation %s is its own civil war nation",
-                     nation_rule_name(pnation));
+                     nation_rule_name(&pnation));
           ok = false;
           break;
         } else if (nullptr != pconflict) {
-          nation_list_append(pnation->server.civilwar_nations, pconflict);
-          nation_list_append(pconflict->server.parent_nations, pnation);
+          nation_list_append(pnation.server.civilwar_nations, pconflict);
+          nation_list_append(pconflict->server.parent_nations, &pnation);
         } else {
-          /* For nation authors, this would probably be considered an error.
-           * But it can happen normally. The civ1 compatability ruleset only
-           * uses the nations that were in civ1, so not all of the links will
-           * exist. */
+          /* For nation authors, this would probably be considered an
+           * error. But it can happen normally. The civ1 compatability
+           * ruleset only uses the nations that were in civ1, so not all of
+           * the links will exist. */
           qCDebug(ruleset_category,
                   "Nation %s: civil war nation \"%s\" is unknown.",
-                  nation_rule_name(pnation), vec[j]);
+                  nation_rule_name(&pnation), vec[j]);
         }
       }
       delete[] vec;
@@ -5182,29 +5171,29 @@ static bool load_ruleset_nations(struct section_file *file,
       }
 
       // Load nation specific initial items
-      if (!lookup_tech_list(file, sec_name, "init_techs",
-                            pnation->init_techs, filename)) {
+      if (!lookup_tech_list(file, sec_name, "init_techs", pnation.init_techs,
+                            filename)) {
         ok = false;
         break;
       }
       if (!lookup_building_list(file, sec_name, "init_buildings",
-                                pnation->init_buildings, filename)) {
+                                pnation.init_buildings, filename)) {
         ok = false;
         break;
       }
-      if (!lookup_unit_list(file, sec_name, "init_units",
-                            pnation->init_units, filename)) {
+      if (!lookup_unit_list(file, sec_name, "init_units", pnation.init_units,
+                            filename)) {
         ok = false;
         break;
       }
       fc_strlcat(tmp, sec_name, 200);
       fc_strlcat(tmp, ".init_government", 200);
       if (secfile_entry_by_path(file, tmp)) {
-        pnation->init_government =
+        pnation.init_government =
             lookup_government(file, tmp, filename, nullptr);
-        /* If specified, init_government has to be in this specific ruleset,
-         * not just allowed_govs */
-        if (pnation->init_government == nullptr) {
+        /* If specified, init_government has to be in this specific
+         * ruleset, not just allowed_govs */
+        if (pnation.init_government == nullptr) {
           ok = false;
           break;
         }
@@ -5212,20 +5201,20 @@ static bool load_ruleset_nations(struct section_file *file,
          * nation's init_government is on the list. */
         if (game.server.ruledit.allowed_govs != nullptr
             && !is_on_allowed_list(
-                government_rule_name(pnation->init_government),
+                government_rule_name(pnation.init_government),
                 game.server.ruledit.allowed_govs,
                 game.server.ruledit.ag_count)) {
           qCCritical(ruleset_category,
                      "Nation %s: init_government \"%s\" not allowed.",
-                     nation_rule_name(pnation),
-                     government_rule_name(pnation->init_government));
+                     nation_rule_name(&pnation),
+                     government_rule_name(pnation.init_government));
           ok = false;
           break;
         }
       }
 
       // Read default city names.
-      if (!load_city_name_list(file, pnation, sec_name, "cities",
+      if (!load_city_name_list(file, &pnation, sec_name, "cities",
                                game.server.ruledit.allowed_terrains,
                                game.server.ruledit.at_count)) {
         ok = false;
@@ -5233,17 +5222,16 @@ static bool load_ruleset_nations(struct section_file *file,
       }
 
       legend = secfile_lookup_str_default(file, "", "%s.legend", sec_name);
-      pnation->legend = fc_strdup(legend);
-      if (check_strlen(pnation->legend, MAX_LEN_MSG, nullptr)) {
+      pnation.legend = fc_strdup(legend);
+      if (check_strlen(pnation.legend, MAX_LEN_MSG, nullptr)) {
         qCCritical(ruleset_category, "Nation %s: legend \"%s\" is too long.",
-                   nation_rule_name(pnation), pnation->legend);
+                   nation_rule_name(&pnation), pnation.legend);
         ok = false;
         break;
       }
 
-      pnation->player = nullptr;
+      pnation.player = nullptr;
     }
-    nations_iterate_end;
     section_list_destroy(sec);
     sec = nullptr;
   }
@@ -5268,12 +5256,11 @@ static bool load_ruleset_nations(struct section_file *file,
       int num_playable = 0, barb_land_count = 0, barb_sea_count = 0,
           barb_both_count = 0;
 
-      nations_iterate(pnation)
-      {
-        if (nation_is_in_set(pnation, pset)) {
-          switch (nation_barbarian_type(pnation)) {
+      for (auto &pnation : nations) {
+        if (nation_is_in_set(&pnation, pset)) {
+          switch (nation_barbarian_type(&pnation)) {
           case NOT_A_BARBARIAN:
-            if (is_nation_playable(pnation)) {
+            if (is_nation_playable(&pnation)) {
               num_playable++;
             }
             break;
@@ -5294,7 +5281,6 @@ static bool load_ruleset_nations(struct section_file *file,
           }
         }
       }
-      nations_iterate_end;
       if (num_playable < 1) {
         qCCritical(ruleset_category,
                    "Nation set \"%s\" has no playable nations. "
@@ -8167,32 +8153,32 @@ static void send_ruleset_governments(struct conn_list *dest)
   struct packet_ruleset_government_ruler_title title;
   int j;
 
-  governments_iterate(g)
-  {
+  for (auto &g : governments) {
     // send one packet_government
-    gov.id = government_number(g);
+    gov.id = government_number(&g);
 
     j = 0;
-    requirement_vector_iterate(&g->reqs, preq) { gov.reqs[j++] = *preq; }
+    requirement_vector_iterate(&g.reqs, preq) { gov.reqs[j++] = *preq; }
     requirement_vector_iterate_end;
     gov.reqs_count = j;
 
-    sz_strlcpy(gov.name, untranslated_name(&g->name));
-    sz_strlcpy(gov.rule_name, rule_name_get(&g->name));
-    sz_strlcpy(gov.graphic_str, g->graphic_str);
-    sz_strlcpy(gov.graphic_alt, g->graphic_alt);
-    packet_strvec_compute(gov.helptext, g->helptext);
+    sz_strlcpy(gov.name, untranslated_name(&g.name));
+    sz_strlcpy(gov.rule_name, rule_name_get(&g.name));
+    sz_strlcpy(gov.graphic_str, g.graphic_str);
+    sz_strlcpy(gov.graphic_alt, g.graphic_alt);
+    packet_strvec_compute(gov.helptext, g.helptext);
 
     lsend_packet_ruleset_government(dest, &gov);
 
     // Send one packet_government_ruler_title per ruler title.
 
-    for (auto *pruler_title : qAsConst(*government_ruler_titles(g))) {
+    for (auto *pruler_title : qAsConst(*government_ruler_titles(&g))) {
       {
         const struct nation_type *pnation = ruler_title_nation(pruler_title);
 
-        title.gov = government_number(g);
-        title.nation = pnation ? nation_number(pnation) : nation_count();
+        title.gov = government_number(&g);
+        title.nation =
+            pnation ? nation_index(pnation) : game.control.nation_count;
         sz_strlcpy(title.male_title,
                    ruler_title_male_untranslated_name(pruler_title));
         sz_strlcpy(title.female_title,
@@ -8200,8 +8186,7 @@ static void send_ruleset_governments(struct conn_list *dest)
         lsend_packet_ruleset_government_ruler_title(dest, &title);
       }
     }
-  }
-  governments_iterate_end;
+  } // iterate governments - g
 }
 
 /**
@@ -8239,22 +8224,21 @@ static void send_ruleset_nations(struct conn_list *dest)
   nation_groups_iterate_end;
   lsend_packet_ruleset_nation_groups(dest, &groups_packet);
 
-  nations_iterate(n)
-  {
-    packet.id = nation_number(n);
-    if (n->translation_domain == nullptr) {
+  for (const auto &n : nations) {
+    packet.id = nation_index(&n);
+    if (n.translation_domain == nullptr) {
       packet.translation_domain[0] = '\0';
     } else {
-      sz_strlcpy(packet.translation_domain, n->translation_domain);
+      sz_strlcpy(packet.translation_domain, n.translation_domain);
     }
-    sz_strlcpy(packet.adjective, untranslated_name(&n->adjective));
-    sz_strlcpy(packet.rule_name, rule_name_get(&n->adjective));
-    sz_strlcpy(packet.noun_plural, untranslated_name(&n->noun_plural));
-    sz_strlcpy(packet.graphic_str, n->flag_graphic_str);
-    sz_strlcpy(packet.graphic_alt, n->flag_graphic_alt);
+    sz_strlcpy(packet.adjective, untranslated_name(&n.adjective));
+    sz_strlcpy(packet.rule_name, rule_name_get(&n.adjective));
+    sz_strlcpy(packet.noun_plural, untranslated_name(&n.noun_plural));
+    sz_strlcpy(packet.graphic_str, n.flag_graphic_str);
+    sz_strlcpy(packet.graphic_alt, n.flag_graphic_alt);
 
     i = 0;
-    nation_leader_list_iterate(nation_leaders(n), pleader)
+    nation_leader_list_iterate(nation_leaders(&n), pleader)
     {
       sz_strlcpy(packet.leader_name[i], nation_leader_name(pleader));
       packet.leader_is_male[i] = nation_leader_is_male(pleader);
@@ -8263,14 +8247,14 @@ static void send_ruleset_nations(struct conn_list *dest)
     nation_leader_list_iterate_end;
     packet.leader_count = i;
 
-    packet.style = style_number(n->style);
-    packet.is_playable = n->is_playable;
-    packet.barbarian_type = n->barb_type;
+    packet.style = style_number(n.style);
+    packet.is_playable = n.is_playable;
+    packet.barbarian_type = n.barb_type;
 
-    sz_strlcpy(packet.legend, n->legend);
+    sz_strlcpy(packet.legend, n.legend);
 
     i = 0;
-    nation_set_list_iterate(n->sets, pset)
+    nation_set_list_iterate(n.sets, pset)
     {
       packet.sets[i++] = nation_set_number(pset);
     }
@@ -8278,28 +8262,28 @@ static void send_ruleset_nations(struct conn_list *dest)
     packet.nsets = i;
 
     i = 0;
-    nation_group_list_iterate(n->groups, pgroup)
+    nation_group_list_iterate(n.groups, pgroup)
     {
       packet.groups[i++] = nation_group_number(pgroup);
     }
     nation_group_list_iterate_end;
     packet.ngroups = i;
 
-    packet.init_government_id = n->init_government
-                                    ? government_number(n->init_government)
+    packet.init_government_id = n.init_government
+                                    ? government_number(n.init_government)
                                     : government_count();
-    fc_assert(ARRAY_SIZE(packet.init_techs) == ARRAY_SIZE(n->init_techs));
+    fc_assert(ARRAY_SIZE(packet.init_techs) == ARRAY_SIZE(n.init_techs));
     for (i = 0; i < MAX_NUM_TECH_LIST; i++) {
-      if (n->init_techs[i] != A_LAST) {
-        packet.init_techs[i] = n->init_techs[i];
+      if (n.init_techs[i] != A_LAST) {
+        packet.init_techs[i] = n.init_techs[i];
       } else {
         break;
       }
     }
     packet.init_techs_count = i;
-    fc_assert(ARRAY_SIZE(packet.init_units) == ARRAY_SIZE(n->init_units));
+    fc_assert(ARRAY_SIZE(packet.init_units) == ARRAY_SIZE(n.init_units));
     for (i = 0; i < MAX_NUM_UNIT_LIST; i++) {
-      const struct unit_type *t = n->init_units[i];
+      const struct unit_type *t = n.init_units[i];
       if (t) {
         packet.init_units[i] = utype_number(t);
       } else {
@@ -8308,11 +8292,11 @@ static void send_ruleset_nations(struct conn_list *dest)
     }
     packet.init_units_count = i;
     fc_assert(ARRAY_SIZE(packet.init_buildings)
-              == ARRAY_SIZE(n->init_buildings));
+              == ARRAY_SIZE(n.init_buildings));
     for (i = 0; i < MAX_NUM_BUILDING_LIST; i++) {
-      if (n->init_buildings[i] != B_LAST) {
+      if (n.init_buildings[i] != B_LAST) {
         // Impr_type_id to int
-        packet.init_buildings[i] = n->init_buildings[i];
+        packet.init_buildings[i] = n.init_buildings[i];
       } else {
         break;
       }
@@ -8321,7 +8305,6 @@ static void send_ruleset_nations(struct conn_list *dest)
 
     lsend_packet_ruleset_nation(dest, &packet);
   }
-  nations_iterate_end;
 
   // Send initial values of is_pickable
   send_nation_availability(dest, false);

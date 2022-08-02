@@ -13,7 +13,6 @@
 
 // utility
 #include "fcintl.h"
-#include "iterator.h"
 #include "log.h"
 #include "shared.h"
 #include "support.h"
@@ -26,21 +25,18 @@
 
 #include "government.h"
 
-struct government *governments = nullptr;
-
+std::vector<government> governments;
 /**
    Returns the government that has the given (translated) name.
    Returns nullptr if none match.
  */
 struct government *government_by_translated_name(const char *name)
 {
-  governments_iterate(gov)
-  {
-    if (0 == strcmp(government_name_translation(gov), name)) {
-      return gov;
+  for (auto &gov : governments) {
+    if (0 == strcmp(government_name_translation(&gov), name)) {
+      return &gov;
     }
   }
-  governments_iterate_end;
 
   return nullptr;
 }
@@ -53,13 +49,11 @@ struct government *government_by_rule_name(const char *name)
 {
   const char *qname = Qn_(name);
 
-  governments_iterate(gov)
-  {
-    if (0 == fc_strcasecmp(government_rule_name(gov), qname)) {
-      return gov;
+  for (auto &gov : governments) {
+    if (0 == fc_strcasecmp(government_rule_name(&gov), qname)) {
+      return &gov;
     }
-  }
-  governments_iterate_end;
+  };
 
   return nullptr;
 }
@@ -81,7 +75,7 @@ Government_type_id government_count()
 Government_type_id government_index(const struct government *pgovern)
 {
   fc_assert_ret_val(nullptr != pgovern, 0);
-  return pgovern - governments;
+  return pgovern - &governments[0];
 }
 
 /**
@@ -228,7 +222,7 @@ static bool ruler_title_check(const struct ruler_title *pruler_title)
                 "is not a format. It should match \"%%s\"",
                 rule_name_get(&pruler_title->male),
                 nation_rule_name(pruler_title->pnation),
-                nation_number(pruler_title->pnation));
+                nation_index(pruler_title->pnation));
     } else {
       qCritical("\"%s\" male ruler title is not a format. "
                 "It should match \"%%s\"",
@@ -243,7 +237,7 @@ static bool ruler_title_check(const struct ruler_title *pruler_title)
                 "is not a format. It should match \"%%s\"",
                 rule_name_get(&pruler_title->female),
                 nation_rule_name(pruler_title->pnation),
-                nation_number(pruler_title->pnation));
+                nation_index(pruler_title->pnation));
     } else {
       qCritical("\"%s\" female ruler title is not a format. "
                 "It should match \"%%s\"",
@@ -258,7 +252,7 @@ static bool ruler_title_check(const struct ruler_title *pruler_title)
                 "(nb %d) is not a format (\"%s\"). It should match \"%%s\"",
                 rule_name_get(&pruler_title->male),
                 nation_rule_name(pruler_title->pnation),
-                nation_number(pruler_title->pnation),
+                nation_index(pruler_title->pnation),
                 name_translation_get(&pruler_title->male));
     } else {
       qCritical("Translation of \"%s\" male ruler title is not a format "
@@ -275,7 +269,7 @@ static bool ruler_title_check(const struct ruler_title *pruler_title)
                 "(nb %d) is not a format (\"%s\"). It should match \"%%s\"",
                 rule_name_get(&pruler_title->female),
                 nation_rule_name(pruler_title->pnation),
-                nation_number(pruler_title->pnation),
+                nation_index(pruler_title->pnation),
                 name_translation_get(&pruler_title->female));
     } else {
       qCritical("Translation of \"%s\" female ruler title is not a format "
@@ -326,7 +320,7 @@ struct ruler_title *government_ruler_title_new(
       qCritical("Ruler title for government \"%s\" (nb %d) and "
                 "nation \"%s\" (nb %d) was set twice.",
                 government_rule_name(pgovern), government_number(pgovern),
-                nation_rule_name(pnation), nation_number(pnation));
+                nation_rule_name(pnation), nation_index(pnation));
     } else {
       qCritical("Default ruler title for government \"%s\" (nb %d) "
                 "was set twice.",
@@ -386,7 +380,7 @@ const char *ruler_title_for_player(const struct player *pplayer, char *buf,
     qCritical("Missing title for government \"%s\" (nb %d) "
               "nation \"%s\" (nb %d).",
               government_rule_name(pgovern), government_number(pgovern),
-              nation_rule_name(pnation), nation_number(pnation));
+              nation_rule_name(pnation), nation_index(pnation));
     if (pplayer->is_male) {
       fc_snprintf(buf, buf_len, _("Mr. %s"), player_name(pplayer));
     } else {
@@ -407,87 +401,32 @@ const char *ruler_title_for_player(const struct player *pplayer, char *buf,
   return buf;
 }
 
-/**************************************************************************
-  Government iterator.
-**************************************************************************/
-struct government_iter {
-  struct iterator vtable;
-  struct government *p, *end;
-};
-#define GOVERNMENT_ITER(p) ((struct government_iter *) (p))
-
-/**
-   Implementation of iterator 'sizeof' function.
- */
-size_t government_iter_sizeof() { return sizeof(struct government_iter); }
-
-/**
-   Implementation of iterator 'next' function.
- */
-static void government_iter_next(struct iterator *iter)
-{
-  GOVERNMENT_ITER(iter)->p++;
-}
-
-/**
-   Implementation of iterator 'get' function.
- */
-static void *government_iter_get(const struct iterator *iter)
-{
-  return GOVERNMENT_ITER(iter)->p;
-}
-
-/**
-   Implementation of iterator 'valid' function.
- */
-static bool government_iter_valid(const struct iterator *iter)
-{
-  struct government_iter *it = GOVERNMENT_ITER(iter);
-  return it->p < it->end;
-}
-
-/**
-   Implementation of iterator 'init' function.
- */
-struct iterator *government_iter_init(struct government_iter *it)
-{
-  it->vtable.next = government_iter_next;
-  it->vtable.get = government_iter_get;
-  it->vtable.valid = government_iter_valid;
-  it->p = governments;
-  it->end = governments + government_count();
-  return ITERATOR(it);
-}
-
 /**
    Allocate resources associated with the given government.
  */
-static inline void government_init(struct government *pgovern)
+government::government()
 {
-  memset(pgovern, 0, sizeof(*pgovern));
-
-  pgovern->item_number = pgovern - governments;
-  pgovern->ruler_titles =
-      new QHash<const struct nation_type *, struct ruler_title *>;
-  requirement_vector_init(&pgovern->reqs);
-  pgovern->changed_to_times = 0;
-  pgovern->ruledit_disabled = false;
+  item_number = 0;
+  ruler_titles = new QHash<const struct nation_type *, struct ruler_title *>;
+  requirement_vector_init(&reqs);
+  changed_to_times = 0;
+  ruledit_disabled = false;
 }
 
 /**
    De-allocate resources associated with the given government.
  */
-static inline void government_free(struct government *pgovern)
+government::~government()
 {
-  for (auto *a : pgovern->ruler_titles->values()) {
+  for (auto *a : ruler_titles->values()) {
     delete a;
   }
-  delete pgovern->ruler_titles;
-  delete pgovern->helptext;
-  pgovern->ruler_titles = nullptr;
-  pgovern->helptext = nullptr;
+  delete ruler_titles;
+  delete helptext;
+  ruler_titles = nullptr;
+  helptext = nullptr;
 
-  requirement_vector_free(&pgovern->reqs);
+  requirement_vector_free(&reqs);
 }
 
 /**
@@ -495,14 +434,13 @@ static inline void government_free(struct government *pgovern)
  */
 void governments_alloc(int num)
 {
-  int i;
-
-  fc_assert(nullptr == governments);
-  governments = new government[num];
+  fc_assert(0 == governments.size());
+  governments.resize(num);
   game.control.government_count = num;
 
-  for (i = 0; i < game.control.government_count; i++) {
-    government_init(governments + i);
+  int i = 0;
+  for (auto &gov : governments) {
+    gov.item_number = i++;
   }
 }
 
@@ -511,17 +449,7 @@ void governments_alloc(int num)
  */
 void governments_free()
 {
-  int i;
-
-  if (nullptr == governments) {
-    return;
-  }
-
-  for (i = 0; i < game.control.government_count; i++) {
-    government_free(governments + i);
-  }
-  delete[] governments;
-  governments = nullptr;
+  governments.clear();
   game.control.government_count = 0;
 }
 

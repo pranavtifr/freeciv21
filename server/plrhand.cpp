@@ -1101,7 +1101,7 @@ static void package_player_common(struct player *plr,
   sz_strlcpy(packet->name, player_name(plr));
   sz_strlcpy(packet->username, plr->username);
   packet->unassigned_user = plr->unassigned_user;
-  packet->nation = plr->nation ? nation_number(plr->nation) : NATION_NONE;
+  packet->nation = plr->nation ? nation_index(plr->nation) : NATION_NONE;
   packet->is_male = plr->is_male;
   packet->team = plr->team ? team_number(plr->team) : team_count();
   packet->is_ready = plr->is_ready;
@@ -1560,21 +1560,21 @@ void assign_player_colors()
   if (game.server.plrcolormode == PLRCOL_NATION_ORDER) {
     /* Additionally, try to avoid color clashes with certain nations not
      * yet in play (barbarians). */
-    allowed_nations_iterate(pnation)
-    {
-      const struct rgbcolor *ncol = nation_color(pnation);
-      if (ncol && nation_barbarian_type(pnation) != NOT_A_BARBARIAN) {
-        // Don't use this color.
-        rgbcolor_list_iterate(spare_colors, prgbcolor)
-        {
-          if (rgbcolors_are_equal(ncol, prgbcolor)) {
-            rgbcolor_list_remove(spare_colors, ncol);
+    for (const auto &pnation : nations) {
+      if (nation_is_in_current_set(&pnation)) {
+        const struct rgbcolor *ncol = nation_color(&pnation);
+        if (ncol && nation_barbarian_type(&pnation) != NOT_A_BARBARIAN) {
+          // Don't use this color.
+          rgbcolor_list_iterate(spare_colors, prgbcolor)
+          {
+            if (rgbcolors_are_equal(ncol, prgbcolor)) {
+              rgbcolor_list_remove(spare_colors, ncol);
+            }
           }
+          rgbcolor_list_iterate_end;
         }
-        rgbcolor_list_iterate_end;
       }
     }
-    allowed_nations_iterate_end;
   }
 
   fc_assert(game.server.plrcolormode == PLRCOL_PLR_RANDOM
@@ -2269,9 +2269,9 @@ struct nation_type *pick_a_nation(const struct nation_list *choices,
     AVAILABLE,
     PREFERRED,
     UNWANTED
-  } nations_used[nation_count()],
+  } nations_used[game.control.nation_count],
       looking_for;
-  int match[nation_count()], pick, idx;
+  int match[game.control.nation_count], pick, idx;
   int num_avail_nations = 0, num_pref_nations = 0;
 
   /* Values of nations_used:
@@ -2279,15 +2279,14 @@ struct nation_type *pick_a_nation(const struct nation_list *choices,
    * AVAILABLE - we can use this nation.
    * PREFERRED - we can use this nation and it is on the choices list.
    * UNWANTED - we can use this nation, but we really don't want to. */
-  nations_iterate(pnation)
-  {
-    idx = nation_index(pnation);
+  for (auto &pnation : nations) {
+    idx = nation_index(&pnation);
 
-    if (!nation_is_in_current_set(pnation) || pnation->player
+    if (!nation_is_in_current_set(&pnation) || pnation.player
         || (needs_startpos && game.scenario.startpos_nations
-            && pnation->server.no_startpos)
-        || (barb_type != nation_barbarian_type(pnation))
-        || (barb_type == NOT_A_BARBARIAN && !is_nation_playable(pnation))) {
+            && pnation.server.no_startpos)
+        || (barb_type != nation_barbarian_type(&pnation))
+        || (barb_type == NOT_A_BARBARIAN && !is_nation_playable(&pnation))) {
       /* Nation is unplayable or already used: don't consider it.
        * (If nations aren't currently restricted to those with start
        * positions, we do nothing special here, but generate_players() will
@@ -2305,13 +2304,13 @@ struct nation_type *pick_a_nation(const struct nation_list *choices,
     players_iterate(pplayer)
     {
       if (pplayer->nation != NO_NATION_SELECTED) {
-        int x = nations_match(pnation, nation_of_player(pplayer),
+        int x = nations_match(&pnation, nation_of_player(pplayer),
                               ignore_conflicts);
         if (x < 0) {
           log_debug("Nations '%s' (nb %d) and '%s' (nb %d) are in conflict.",
-                    nation_rule_name(pnation), nation_number(pnation),
+                    nation_rule_name(&pnation), nation_index(&pnation),
                     nation_rule_name(nation_of_player(pplayer)),
-                    nation_number(nation_of_player(pplayer)));
+                    nation_index(nation_of_player(pplayer)));
           nations_used[idx] = UNWANTED;
           match[idx] -= x * 100;
           break;
@@ -2326,7 +2325,6 @@ struct nation_type *pick_a_nation(const struct nation_list *choices,
       num_avail_nations += match[idx];
     }
   }
-  nations_iterate_end;
 
   /* Mark as preferred those nations which are on the choices list and
    * which are AVAILABLE, but no UNWANTED */
@@ -2356,36 +2354,32 @@ struct nation_type *pick_a_nation(const struct nation_list *choices,
       log_debug("Picking an available nation.");
     }
 
-    nations_iterate(pnation)
-    {
-      idx = nation_index(pnation);
+    for (auto &pnation : nations) {
+      idx = nation_index(&pnation);
       if (nations_used[idx] == looking_for) {
         pick -= match[idx];
 
         if (0 > pick) {
-          return pnation;
+          return &pnation;
         }
       }
     }
-    nations_iterate_end;
   } else {
     // No available nation: use unwanted nation...
     struct nation_type *less_worst_nation = NO_NATION_SELECTED;
     int less_worst_score = -FC_INFINITY;
 
     log_debug("Picking an unwanted nation.");
-    nations_iterate(pnation)
-    {
-      idx = nation_index(pnation);
+    for (auto &pnation : nations) {
+      idx = nation_index(&pnation);
       if (UNWANTED == nations_used[idx]) {
         pick = -fc_rand(match[idx]);
         if (pick > less_worst_score) {
-          less_worst_nation = pnation;
+          less_worst_nation = &pnation;
           less_worst_score = pick;
         }
       }
     }
-    nations_iterate_end;
 
     if (NO_NATION_SELECTED != less_worst_nation) {
       return less_worst_nation;
@@ -2421,13 +2415,13 @@ bool nation_is_in_current_set(const struct nation_type *pnation)
 void count_playable_nations()
 {
   server.playable_nations = 0;
-  allowed_nations_iterate(pnation)
-  {
-    if (is_nation_playable(pnation)) {
-      server.playable_nations++;
+  for (const auto &pnation : nations) {
+    if (nation_is_in_current_set(&pnation)) {
+      if (is_nation_playable(&pnation)) {
+        server.playable_nations++;
+      }
     }
   }
-  allowed_nations_iterate_end;
 }
 
 /**
@@ -2451,14 +2445,12 @@ static void send_nation_availability_real(struct conn_list *dest,
 {
   struct packet_nation_availability packet;
 
-  packet.ncount = nation_count();
+  packet.ncount = game.control.nation_count;
   packet.nationset_change = nationset_change;
-  nations_iterate(pnation)
-  {
-    packet.is_pickable[nation_index(pnation)] =
-        client_can_pick_nation(pnation);
+  for (const auto &pnation : nations) {
+    packet.is_pickable[nation_index(&pnation)] =
+        client_can_pick_nation(&pnation);
   }
-  nations_iterate_end;
   lsend_packet_nation_availability(dest, &packet);
 }
 

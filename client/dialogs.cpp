@@ -549,7 +549,6 @@ void races_dialog::refresh()
   QTableWidgetItem *item;
   QHeaderView *header;
   int i;
-  int count;
 
   nation_tabs->clearContents();
   nation_tabs->setRowCount(0);
@@ -564,17 +563,11 @@ void races_dialog::refresh()
     if (is_nation_group_hidden(group)) {
       continue;
     }
-    count = 0;
-    // checking if group is empty
-    nations_iterate(pnation)
-    {
-      if (!is_nation_playable(pnation) || !is_nation_pickable(pnation)
-          || !nation_is_in_group(pnation, group)) {
-        continue;
-      }
-      count++;
-    }
-    nations_iterate_end;
+    auto count = std::count_if(
+        nations.begin(), nations.end(), [group](nation_type &n) {
+          return is_nation_playable(&n) && is_nation_pickable(&n)
+                 && nation_is_in_group(&n, group);
+        });
     if (count == 0) {
       continue;
     }
@@ -647,28 +640,26 @@ void races_dialog::set_index(int index)
 
   group = nation_group_by_number(index);
   i = 0;
-  nations_iterate(pnation)
-  {
-    if (!is_nation_playable(pnation) || !is_nation_pickable(pnation)) {
+  for (const auto &pnation : nations) {
+    if (!is_nation_playable(&pnation) || !is_nation_pickable(&pnation)) {
       continue;
     }
-    if (!nation_is_in_group(pnation, group) && index != -99) {
+    if (!nation_is_in_group(&pnation, group) && index != -99) {
       continue;
     }
     item = new QTableWidgetItem;
     selected_nation_tabs->insertRow(i);
-    auto s = get_nation_flag_sprite(tileset, pnation);
-    if (pnation->player) {
+    auto s = get_nation_flag_sprite(tileset, &pnation);
+    if (pnation.player) {
       f = item->font();
       f.setStrikeOut(true);
       item->setFont(f);
     }
     item->setData(Qt::DecorationRole, *s);
-    item->setData(Qt::UserRole, nation_number(pnation));
-    item->setText(nation_adjective_translation(pnation));
+    item->setData(Qt::UserRole, nation_index(&pnation));
+    item->setText(nation_adjective_translation(&pnation));
     selected_nation_tabs->setItem(i, 0, item);
-  }
-  nations_iterate_end;
+  } // iterate over nations - pnation
 
   selected_nation_tabs->sortByColumn(0, Qt::AscendingOrder);
   header = selected_nation_tabs->horizontalHeader();

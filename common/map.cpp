@@ -16,7 +16,6 @@
 #include <stdexcept>
 
 // utility
-#include "iterator.h"
 #include "log.h"
 #include "rand.h"
 #include "shared.h"
@@ -1468,7 +1467,7 @@ bool startpos_pack(const struct startpos *psp,
   BV_CLR_ALL(packet->nations);
 
   for (const auto *pnation : qAsConst(*psp->nations)) {
-    BV_SET(packet->nations, nation_number(pnation));
+    BV_SET(packet->nations, nation_index(pnation));
   }
   return true;
 }
@@ -1489,13 +1488,11 @@ bool startpos_unpack(struct startpos *psp,
   if (!BV_ISSET_ANY(packet->nations)) {
     return true;
   }
-  nations_iterate(pnation)
-  {
-    if (BV_ISSET(packet->nations, nation_number(pnation))) {
-      psp->nations->insert(pnation);
+  for (const auto &pnation : nations) {
+    if (BV_ISSET(packet->nations, nation_index(&pnation))) {
+      psp->nations->insert(&pnation);
     }
-  }
-  nations_iterate_end;
+  } // iterate over nations - pnation
   return true;
 }
 

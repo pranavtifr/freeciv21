@@ -241,11 +241,13 @@ void universal_kind_values(struct universal *univ, univ_kind_values_cb cb,
     advance_re_active_iterate_end;
     break;
   case VUT_GOVERNMENT:
-    governments_re_active_iterate(pgov)
-    {
-      cb(government_rule_name(pgov), univ->value.govern == pgov, data);
+    for (auto &pgov : governments) {
+      if (!pgov.ruledit_disabled) {
+        {
+          cb(government_rule_name(&pgov), univ->value.govern == &pgov, data);
+        }
+      }
     }
-    governments_re_active_iterate_end;
     break;
   case VUT_IMPROVEMENT:
     improvement_re_active_iterate(pimpr)
@@ -262,11 +264,9 @@ void universal_kind_values(struct universal *univ, univ_kind_values_cb cb,
     terrain_re_active_iterate_end;
     break;
   case VUT_NATION:
-    nations_iterate(pnat)
-    {
-      cb(nation_rule_name(pnat), univ->value.nation == pnat, data);
+    for (auto &pnat : nations) {
+      cb(nation_rule_name(&pnat), univ->value.nation == &pnat, data);
     }
-    nations_iterate_end;
     break;
   case VUT_UTYPE:
     unit_type_re_active_iterate(putype)
@@ -297,11 +297,9 @@ void universal_kind_values(struct universal *univ, univ_kind_values_cb cb,
     goods_type_re_active_iterate_end;
     break;
   case VUT_NATIONALITY:
-    nations_iterate(pnat)
-    {
-      cb(nation_rule_name(pnat), univ->value.nationality == pnat, data);
+    for (auto &pnat : nations) {
+      cb(nation_rule_name(&pnat), univ->value.nationality == &pnat, data);
     }
-    nations_iterate_end;
     break;
   case VUT_EXTRA:
     extra_type_re_active_iterate(pextra)

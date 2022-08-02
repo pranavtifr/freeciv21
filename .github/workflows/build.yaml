@@ -244,7 +244,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/qt
-          key: qt-wasm-${{ env.QT_VERSION }}-svg-socket
+          key: qt-wasm-${{ env.QT_VERSION }}-svg-socket-v2
       - name: Install build tools
         run: |
           sudo apt-get update
@@ -326,7 +326,7 @@ jobs:
         name: Checkout extra-cmake-modules
         with:
           repository: KDE/extra-cmake-modules
-          ref: v5.89.0
+          ref: v5.96.0
           path: ecm
       - name: Install ecm
         run: |
@@ -337,15 +337,17 @@ jobs:
         name: Checkout karchive
         with:
           repository: KDE/karchive
-          ref: v5.89.0
+          ref: v5.96.0
           path: karchive
       - name: Install karchive
         run: |
           source emsdk/emsdk_env.sh
           cd karchive
           git apply ../patches/karchive.diff
-          emcmake cmake -DECM_DIR=/usr/local/share/ECM/cmake -DBUILD_TESTING=0 \
+          emcmake cmake . \
+            -DECM_DIR=/usr/local/share/ECM/cmake -DBUILD_TESTING=0 \
             -DQt5Core_DIR=$HOME/qt/lib/cmake/Qt5Core \
+            -DKF_IGNORE_PLATFORM_CHECK=1 \
             -DCMAKE_INSTALL_PREFIX=../emsdk/upstream/emscripten/cache/sysroot
           emmake make install
       - name: Build Freeciv

@@ -47,8 +47,11 @@ struct government {
   struct {
     struct government *better; // hint: a better government (or nullptr)
   } ai;
+  government();
+  ~government();
 };
 
+extern std::vector<government> governments;
 // General government accessor functions.
 Government_type_id government_count();
 Government_type_id government_index(const struct government *pgovern);
@@ -89,25 +92,5 @@ bool can_change_to_government(struct player *pplayer,
 // Initialization and iteration
 void governments_alloc(int num);
 void governments_free();
-
-struct government_iter;
-size_t government_iter_sizeof();
-struct iterator *government_iter_init(struct government_iter *it);
-
-// Iterate over government types.
-#define governments_iterate(NAME_pgov)                                      \
-  generic_iterate(struct government_iter, struct government *, NAME_pgov,   \
-                  government_iter_sizeof, government_iter_init)
-#define governments_iterate_end generic_iterate_end
-
-#define governments_re_active_iterate(_p)                                   \
-  governments_iterate(_p)                                                   \
-  {                                                                         \
-    if (!_p->ruledit_disabled) {
-
-#define governments_re_active_iterate_end                                   \
-  }                                                                         \
-  }                                                                         \
-  governments_iterate_end;
 
 bool untargeted_revolution_allowed();

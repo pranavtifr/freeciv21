@@ -2097,7 +2097,7 @@ void handle_game_info(const struct packet_game_info *pinfo)
   }
 
   if (game.info.is_edit_mode != pinfo->is_edit_mode) {
-    popdown_all_city_dialogs();
+    popdown_city_dialog();
     // Clears the current goto command.
     clear_hover_state();
 
@@ -4433,8 +4433,8 @@ void handle_nation_availability(int ncount, const bool *is_pickable,
 {
   int i;
 
-  fc_assert_action(ncount == nation_count(),
-                   ncount = MIN(ncount, nation_count()));
+  fc_assert_action(ncount == game.control.nation_count,
+                   ncount = MIN(ncount, game.control.nation_count));
 
   for (i = 0; i < ncount; i++) {
     nation_by_number(i)->client.is_pickable = is_pickable[i];
