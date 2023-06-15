@@ -39,12 +39,6 @@ fold_bool_into_header = 1
 
 lazy_overwrite = 0
 
-
-def verbose(s):
-    if "-v" in sys.argv:
-        print(s)
-
-
 def prefix(prefix, string):
     lines = string.split("\n")
     lines = map(lambda x, prefix=prefix: prefix+x, lines)
@@ -64,7 +58,6 @@ def write_disclaimer(f):
 
 
 def fc_open(name):
-    verbose("writing %s" % name)
     f = open(name, "w")
     write_disclaimer(f)
     return f
@@ -1685,9 +1678,9 @@ def strip_c_comment(s):
 # various files.
 
 
-def main():
+def file_writer(args):
     # parsing input
-    src_dir = os.path.dirname(sys.argv[0])
+    src_dir = os.path.dirname(os.path.abspath(__file__))
     src_root = src_dir+"/.."
     input_name = src_dir+"/networking/packets.def"
 
@@ -1715,7 +1708,7 @@ def main():
     # parsing finished
 
     # writing packets_gen.h
-    output_h_name = sys.argv[1]
+    output_h_name = args.pack_hfile
 
     if output_h_name != "":
         if lazy_overwrite:
@@ -1753,8 +1746,8 @@ void delta_stats_reset(void);
 ''')
         output_h.close()
 
-    # writing packets_gen.c
-    output_c_name = sys.argv[2]
+    # writing packets_gen.cpp
+    output_c_name = args.pack_cppfile
     if output_c_name != "":
         if lazy_overwrite:
             output_c = fc_open(output_c_name+".tmp")
@@ -1834,8 +1827,8 @@ static int stats_total_sent;
                     open(i, "w").write(new)
                 os.remove(i+".tmp")
 
-    if sys.argv[5] != "":
-        f = fc_open(sys.argv[5])
+    if args.hand_hfile != "":
+        f = fc_open(args.hand_hfile)
         f.write('''
 #ifndef FC__HAND_GEN_H
 #define FC__HAND_GEN_H
@@ -1888,8 +1881,8 @@ bool server_handle_packet(enum packet_type type, const void *packet,
 ''')
         f.close()
 
-    if sys.argv[3] != "":
-        f = fc_open(sys.argv[3])
+    if args.pack_hand_hfile != "":
+        f = fc_open(args.pack_hand_hfile)
         f.write('''
 #ifndef FC__PACKHAND_GEN_H
 #define FC__PACKHAND_GEN_H
@@ -1929,8 +1922,8 @@ bool client_handle_packet(enum packet_type type, const void *packet);
 ''')
         f.close()
 
-    if sys.argv[6] != "":
-        f = fc_open(sys.argv[6])
+    if args.hand_cppfile != "":
+        f = fc_open(args.hand_cppfile)
         f.write('''
 
 #include <fc_config.h>
@@ -1989,8 +1982,8 @@ bool server_handle_packet(enum packet_type type, const void *packet,
 ''')
         f.close()
 
-    if sys.argv[4] != "":
-        f = fc_open(sys.argv[4])
+    if args.pack_hand_cppfile != "":
+        f = fc_open(args.pack_hand_cppfile)
         f.write('''
 
 #ifdef HAVE_CONFIG_H
@@ -2042,4 +2035,21 @@ bool client_handle_packet(enum packet_type type, const void *packet)
         f.close()
 
 
-main()
+def parse_args():
+    import argparse
+    parser = argparse.ArgumentParser(
+                    prog='generate_packets',
+                    description='Generates the Cpp code for the packets sent between server and client in freeciv21',
+                    )
+    parser.add_argument('pack_hfile', type=str, help="Name of the Header file")
+    parser.add_argument('pack_cppfile', type=str, help="Name of the Source file")
+    parser.add_argument('--pack_hand_hfile', type=str, help="Name of the Header (pack_hand) file", default="")
+    parser.add_argument('--pack_hand_cppfile', type=str, help="Name of the Source (pack_hand) file", default="")
+    parser.add_argument('--hand_hfile', type=str, help="Name of the Header (hand) file", default="")
+    parser.add_argument('--hand_cppfile', type=str, help="Name of the Source (hand) file", default="")
+    args = parser.parse_args()
+    return args
+
+if __name__ == "__main__":
+    args = parse_args()
+    file_writer(args)
